@@ -1,0 +1,46 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Index
+{% endblock %}
+
+{% block main %}
+
+<table class="table table-striped">
+    <tr>
+        <th>Stock Symbol</th>
+        <th>Number of Shares</th>
+        <th>Current Price</th>
+        <th>Total Value</th>
+    </tr>
+
+    {% for row in rows %}
+        <tr>
+            <td>{{ row.symbol }}</td>
+            <td>{{ row['SUM(num_shares)'] }}</td>
+            <td>${{ row.current_price }}</td>
+            <td>${{ row.total }}</td>
+        </tr>
+    {% endfor %}
+    <tr>
+        <td></td>
+        <td></td>
+        <th>Stock total: </th>
+        <td>${{ stock_total }}</td>
+    </tr>
+    <tr>
+        <td></td>
+        <td></td>
+        <th>Cash total: </th>
+        <td>${{ cash }}</td>
+    </tr>
+    <tr>
+        <td></td>
+        <td></td>
+        <th>Total assets: </th>
+        <td>${{ cash + stock_total }}</td>
+    </tr>
+</table>
+
+
+{% endblock %}

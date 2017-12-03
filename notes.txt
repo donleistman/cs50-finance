@@ -1,0 +1,200 @@
+TODO
+- read distribution code
+- register
+- quote
+- buy
+- index
+- sell
+- history
+
+application.py
+    - lots of imports!
+    - ensures responses aren't cached
+    - configures Flask and Flask session
+    - configures cS50 Library to use SQLite database
+    - @login_required
+        in order to access given route, user must be logged in
+    - login and logout are implemented
+    - apology
+    - db.execute
+
+retrieve form submission data (POST)
+    HTML template                   Python route
+    <input name = "name" .../>      request.form.get("name")
+
+db.execute
+    rows = db.execute("SELECT cash FROM users WHERE id = :id", id=session["user_id"])
+    - always returns an array
+    rows[0]["cash"]
+
+helpers.py
+    - apology
+    - login_required
+    - lookup
+        returns a dict with three keys
+        name, price, symbol
+    - usd
+
+templates
+    - apology.html
+    - layout.html
+    - login.html
+
+and more!
+    - requirements.txt
+    - static/styles.css
+
+---------
+REGISTER
+
+register
+    - display form
+    - valid passwords?
+    - add user to database
+    - log them in
+
+display form
+    - new template - borrow from login.html
+    - need to add a password confirmation field
+    - submit via POST request (know why?)
+
+retrieve form submission data (POST)
+    HTML template                   Python route
+    <input name = "name" .../>      request.form.get("name")
+
+valid passwords?
+    - make sure fields aren't left blank
+        - else, apologize
+        - return apology("Missing username!")
+    - make sure password and confirmation match
+        - else, apologize
+
+security!
+    - hash password
+        - pwd_context.encrypt
+
+add user to database
+
+usernames
+    - usernames are a UNIQUE field in the database
+    - what if they already exist?
+        - db.execute failure?
+            result = db.execute(...)
+            if not result:
+                return apology("...")
+
+so what is the query that we actually want to execute?
+
+SQL Queries: INSERT
+
+    db.execute("INSERT INTO users (username, hash) VALUES (:username, :hash)", username=request.form.get("username"), hash=hash)
+
+    - using placeholders, as shown above, is important to help protect against SQL injection attacks
+
+logging in
+    - once they register successfully, log them in automatically
+    - store their id in session
+        session["user_id"]
+
+
+
+---------
+QUOTE
+
+quote
+- display form
+- retrieve stock quote
+- display stock quote
+
+display form
+- quote.html
+    - form for stock lookup
+    - form input: symbol the user wants to look up
+
+lookup function (implemented in helpers.py)
+    quote = lookup("AAPL")
+    - returns a dict
+        - name
+        - price
+        - symbol
+
+displaying stock information
+- another template
+    - ensure the stock is valid
+    - else: another apology
+
+how do we pass a values from python code to html?
+when you call render template, you are allowed to pass in values
+    two curly braces in Jinja will allow you to reference a Python value
+
+    ex.
+    jinja in template
+        Hello {{ name }}
+
+    application.py
+        def hello():
+        """Say hello. """
+        return render_template("hello.html", name="World")
+
+
+---------
+BUY
+
+new template
+- display form
+    - get stock, number of shares
+- add stock to user's portfolio
+- update cash
+
+display form
+- ask for symbol and number of shares
+- check if valid input
+
+add stock to user's portfolio
+- can the user afford the stock?
+    SELECT cash FROM users WHERE id = 1
+
+    if cash exceeds number of shares * price of stock, you can go ahead and buy it
+
+    need to store stocks in a new table
+
+new SQL table
+- who bought what at what price and when?
+- use appropriate SQLite types
+- define UNIQUE indexes on any fields that should be unique
+- define (non-UNIQUE) indexes on any fields that you may search
+
+transactions (table)
+    - id (primary key, auto increment) UNIQUE
+    - user_id (foreign key)
+    - stock symbol
+    - number of shares
+    - purchase price
+    - datetime stamp
+
+update cash to reflect transaction
+- a user's cash is stored in the users table
+    UPDATE users SET cash = cash - 50 WHERE id = 1
+
+
+---------
+INDEX
+
+display
+    - HTML table with user's portfolio
+        - stocks owned
+        - shares owned for each stock
+        - current price of each stock
+        - total value of each holding
+    - user's current cash balance
+    - grand total of cash + stocks' total value
+
+we want to generate rows in the html table with Jinja
+
+    - Jinja documentation
+
+        {% for stock in stocks %}
+            <p>{{ stock.name }}</p>
+        {% endfor %}
+
+    - which variables do you need to pass to index.html?
