@@ -1,4 +1,7 @@
 from cs50 import SQL
+import os
+import sqlalchemy
+
 from flask import Flask, flash, redirect, render_template, request, session
 from flask_session import Session
 from tempfile import mkdtemp
@@ -6,6 +9,22 @@ from werkzeug.exceptions import default_exceptions
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from helpers import apology, login_required, lookup, usd
+
+# start
+# added the below as part of Heroku post on Medium
+import urllib.parse
+import psycopg2
+urllib.parse.uses_netloc.append("postgres")
+url = urllib.parse.urlparse(os.environ["DATABASE_URL"])
+conn = psycopg2.connect(
+ database=url.path[1:],
+ user=url.username,
+ password=url.password,
+ host=url.hostname,
+ port=url.port
+)
+# end
+
 
 # Configure application
 app = Flask(__name__)
@@ -29,7 +48,41 @@ app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
 # Configure CS50 Library to use SQLite database
-db = SQL("sqlite:///finance.db")
+db = SQL(os.environ["DATABASE_URL"])
+
+
+# start
+# added the below as part of Heroku post on Medium
+class SQL(object):
+    def __init__(self, url):
+        try:
+            self.engine = sqlalchemy.create_engine(url)
+        except Exception as e:
+            raise RuntimeError(e)
+    def execute(self, text, *multiparams, **params):
+        try:
+            statement = sqlalchemy.text(text).bindparams(*multiparams, **params)
+            result = self.engine.execute(str(statement.compile(compile_kwargs={"literal_binds": True})))
+            # SELECT
+            if result.returns_rows:
+                rows = result.fetchall()
+                return [dict(row) for row in rows]
+            # INSERT
+            elif result.lastrowid is not None:
+                return result.lastrowid
+            # DELETE, UPDATE
+            else:
+                return result.rowcount
+        except sqlalchemy.exc.IntegrityError:
+            return None
+        except Exception as e:
+            raise RuntimeError(e)
+# end
+
+
+
+
+
 
 
 @app.route("/")
@@ -41,13 +94,14 @@ def index():
     rows = db.execute("SELECT symbol, SUM(num_shares) FROM transactions WHERE user_id = :user_id GROUP BY symbol", user_id=session["user_id"])
     rows2 = []
     for row in rows:
-        if row["SUM(num_shares)"] != 0:
+        if row['sum'] != 0:
             rows2.append(row)
     stock_total = 0
     for row in rows2:
         stock = lookup(row["symbol"])
+        print(stock)
         row["current_price"] = stock["price"]
-        row["total"] = row['SUM(num_shares)'] * row["current_price"]
+        row["total"] = row['sum'] * row["current_price"]
         stock_total += row["total"]
     return render_template("index.html", rows=rows2, stock_total=stock_total, cash=cash)
 
@@ -194,7 +248,7 @@ def sell():
         rows = db.execute("SELECT symbol, SUM(num_shares) FROM transactions WHERE user_id = :user_id GROUP BY symbol", user_id=session["user_id"])
         stocks = []
         for row in rows:
-            if row["SUM(num_shares)"] != 0:
+            if row["sum"] != 0:
                 stocks.append(row)
         return render_template("sell.html", stocks=stocks)
     else:
@@ -228,3 +282,12 @@ def errorhandler(e):
 # listen for errors
 for code in default_exceptions:
     app.errorhandler(code)(errorhandler)
+
+
+# start
+# added the below as part of Heroku post on Medium
+if __name__ == '__main__':
+     app.debug = True
+     port = int(os.environ.get("PORT", 5000))
+     app.run(host='0.0.0.0', port=port)
+# end
