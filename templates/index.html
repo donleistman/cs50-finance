@@ -6,13 +6,15 @@
 
 {% block main %}
 
-<table>
+<table class="table table-striped">
+    <thead>
     <tr>
         <th>Stock Symbol</th>
         <th>Number of Shares</th>
         <th>Current Price</th>
         <th>Total Value</th>
     </tr>
+    </thead>
 
     {% for row in rows %}
         <tr>
