@@ -24,25 +24,27 @@
             <td>{{ row.total }}</td>
         </tr>
     {% endfor %}
-    <tr>
+    <tr class="table-totals">
         <td></td>
         <td></td>
         <th>Stock total: </th>
         <td>{{ stock_total }}</td>
     </tr>
-    <tr>
-        <td></td>
-        <td></td>
+    <tr class="table-totals">
+        <td style="border-top:0;"></td>
+        <td style="border-top:0;"></td>
         <th>Cash total: </th>
         <td>{{ cash }}</td>
     </tr>
-    <tr>
-        <td></td>
-        <td></td>
+    <tr class="table-totals">
+        <td style="border-top:0;"></td>
+        <td style="border-top:0;"></td>
         <th>Total assets: </th>
         <td>{{ total_assets }}</td>
     </tr>
 </table>
+
+<!-- <p style="color:blue;"> test </p> -->
 
 
 {% endblock %}

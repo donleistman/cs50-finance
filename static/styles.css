@@ -53,6 +53,7 @@ th
     color: white;
 }
 
-thead {
-
+.table-totals td
+{
+    background-color: white;
 }
