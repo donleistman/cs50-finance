@@ -9,6 +9,7 @@ from werkzeug.exceptions import default_exceptions
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from helpers import apology, login_required, lookup, usd
+# from decimal import Decimal
 
 # start
 # added the below as part of Heroku post on Medium
@@ -79,9 +80,8 @@ class SQL(object):
             raise RuntimeError(e)
 # end
 
-
-
-
+def currency(decimal):
+    return '${:,.2f}'.format(decimal)
 
 
 
@@ -92,18 +92,19 @@ def index():
     cash = db.execute("SELECT cash FROM users WHERE id = :user_id", user_id=session["user_id"])
     cash = round(cash[0]["cash"], 2)
     rows = db.execute("SELECT symbol, SUM(num_shares) FROM transactions WHERE user_id = :user_id GROUP BY symbol", user_id=session["user_id"])
-    rows2 = []
+    table_display = []
     for row in rows:
         if row['sum'] != 0:
-            rows2.append(row)
+            table_display.append(row)
     stock_total = 0
-    for row in rows2:
+    for row in table_display:
         stock = lookup(row["symbol"])
         print(stock)
-        row["current_price"] = stock["price"]
-        row["total"] = row['sum'] * row["current_price"]
-        stock_total += row["total"]
-    return render_template("index.html", rows=rows2, stock_total=stock_total, cash=cash)
+        row["current_price"] = currency(stock["price"])
+        row["total"] = currency(row['sum'] * stock["price"])
+        stock_total += row['sum'] * stock["price"]
+    total_assets = cash + stock_total
+    return render_template("index.html", rows=table_display, stock_total=currency(stock_total), cash=currency(cash), total_assets=currency(total_assets))
 
 
 @app.route("/buy", methods=["GET", "POST"])
@@ -141,7 +142,8 @@ def history():
     """Show history of transactions"""
     rows = db.execute("SELECT symbol, num_shares, price, timestamp FROM transactions WHERE user_id = :user_id", user_id=session["user_id"])
     for transaction in rows:
-        transaction["total"] = transaction["num_shares"] * transaction["price"]
+        transaction["total"] = currency(transaction["num_shares"] * transaction["price"])
+        transaction["price"] = currency(transaction["price"])
         if transaction["num_shares"] > 0:
             transaction["type"] = "Buy"
         else:
@@ -209,6 +211,7 @@ def quote():
             return apology("Missing stock symbol!")
         else:
             stock = lookup(symbol)
+            stock["price"] = currency(stock["price"])
             return render_template("quote_result.html", stock=stock)
 
 
