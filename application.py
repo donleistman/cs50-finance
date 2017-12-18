@@ -123,12 +123,13 @@ def buy():
         return render_template("buy.html")
     else:
         symbol = request.form.get("symbol")
-        num_shares = int(request.form.get("num_shares"))
+        num_shares = request.form.get("num_shares")
         if not symbol:
             return apology("Missing stock symbol!")
         elif not num_shares:
             return apology("Missing number of shares!")
         else:
+            num_shares = int(num_shares)
             stock = lookup(symbol)
             price = float(stock["price"])
 
@@ -178,11 +179,11 @@ def login():
 
         # Ensure username was submitted
         if not request.form.get("username"):
-            return apology("must provide username", 403)
+            return apology("Must provide username!", 403)
 
         # Ensure password was submitted
         elif not request.form.get("password"):
-            return apology("must provide password", 403)
+            return apology("Must provide password!", 403)
 
         # Query database for username
         rows = db.execute("SELECT * FROM users WHERE username = :username",
@@ -277,12 +278,13 @@ def sell():
         return render_template("sell.html", stocks=stocks)
     else:
         symbol = request.form.get("symbol")
-        num_shares = int(request.form.get("num_shares"))
+        num_shares = request.form.get("num_shares")
         if not symbol:
             return apology("Missing stock symbol!")
         elif not num_shares:
             return apology("Missing number of shares!")
         else:
+            num_shares = int(num_shares)
             stock = lookup(symbol)
             price = float(stock["price"])
             num_shares = 0 - num_shares
