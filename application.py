@@ -140,10 +140,11 @@ def buy():
 @login_required
 def history():
     """Show history of transactions"""
-    rows = db.execute("SELECT symbol, num_shares, price, timestamp FROM transactions WHERE user_id = :user_id", user_id=session["user_id"])
+    rows = db.execute("SELECT symbol, num_shares, price, timestamp FROM transactions WHERE user_id = :user_id ORDER BY timestamp desc", user_id=session["user_id"])
     for transaction in rows:
         transaction["total"] = currency(transaction["num_shares"] * transaction["price"])
         transaction["price"] = currency(transaction["price"])
+        transaction["timestamp"] = transaction["timestamp"].strftime("%b %d, %Y\n%I:%M %p")
         if transaction["num_shares"] > 0:
             transaction["type"] = "Buy"
         else:
