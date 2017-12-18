@@ -83,7 +83,7 @@ class SQL(object):
 def currency(decimal):
     string = '${:,.2f}'.format(decimal)
     if decimal < 0:
-        string = "-$" + string[2:len(string)]
+        string = "\u2011$" + string[2:len(string)]
     return string
 
 
@@ -92,12 +92,13 @@ def currency(decimal):
 @login_required
 def index():
     """Show portfolio of stocks"""
-    rows = False
-    cash = False
-    while not (rows and cash):
-        cash = db.execute("SELECT cash FROM users WHERE id = :user_id", user_id=session["user_id"])
-        cash = round(cash[0]["cash"], 2)
-        rows = db.execute("SELECT symbol, SUM(num_shares) FROM transactions WHERE user_id = :user_id GROUP BY symbol", user_id=session["user_id"])
+
+    cash = db.execute("SELECT cash FROM users WHERE id = :user_id", user_id=session["user_id"])
+    cash = round(cash[0]["cash"], 2)
+    rows = db.execute("SELECT symbol, SUM(num_shares) FROM transactions WHERE user_id = :user_id GROUP BY symbol", user_id=session["user_id"])
+
+    if not (rows and cash):
+        return apology("Database query failed. Please try again, Heroku sometimes fails on first attempt")
 
     table_display = []
     for row in rows:
