@@ -81,7 +81,10 @@ class SQL(object):
 # end
 
 def currency(decimal):
-    return '${:,.2f}'.format(decimal)
+    string = '${:,.2f}'.format(decimal)
+    if decimal < 0:
+        string = "-$" + string[2:len(string)]
+    return string
 
 
 
@@ -89,9 +92,13 @@ def currency(decimal):
 @login_required
 def index():
     """Show portfolio of stocks"""
-    cash = db.execute("SELECT cash FROM users WHERE id = :user_id", user_id=session["user_id"])
-    cash = round(cash[0]["cash"], 2)
-    rows = db.execute("SELECT symbol, SUM(num_shares) FROM transactions WHERE user_id = :user_id GROUP BY symbol", user_id=session["user_id"])
+    rows = False
+    cash = False
+    while not (rows and cash):
+        cash = db.execute("SELECT cash FROM users WHERE id = :user_id", user_id=session["user_id"])
+        cash = round(cash[0]["cash"], 2)
+        rows = db.execute("SELECT symbol, SUM(num_shares) FROM transactions WHERE user_id = :user_id GROUP BY symbol", user_id=session["user_id"])
+
     table_display = []
     for row in rows:
         if row['sum'] != 0:
@@ -123,7 +130,11 @@ def buy():
         else:
             stock = lookup(symbol)
             price = float(stock["price"])
+
+
             rows = db.execute("SELECT cash FROM users WHERE id = :user_id", user_id=session["user_id"])
+            if not rows:
+                return apology("Buying stock query failed")
             cash = rows[0]["cash"]
             if (price * num_shares) > cash:
                 return apology("You don't have enough cash!")
@@ -141,6 +152,8 @@ def buy():
 def history():
     """Show history of transactions"""
     rows = db.execute("SELECT symbol, num_shares, price, timestamp FROM transactions WHERE user_id = :user_id ORDER BY timestamp desc", user_id=session["user_id"])
+    if not rows:
+        return apology("Buying stock query failed")
     for transaction in rows:
         transaction["total"] = currency(transaction["num_shares"] * transaction["price"])
         transaction["price"] = currency(transaction["price"])
@@ -173,6 +186,8 @@ def login():
         # Query database for username
         rows = db.execute("SELECT * FROM users WHERE username = :username",
                           username=request.form.get("username"))
+        if not rows:
+            return apology("Buying stock query failed")
 
         # Ensure username exists and password is correct
         if len(rows) != 1 or not check_password_hash(rows[0]["hash"], request.form.get("password")):
@@ -236,6 +251,8 @@ def register():
                 return apology("Username already exists")
             # log them in
             rows = db.execute("SELECT id FROM users WHERE username = :username", username=username)
+            if not rows:
+                return apology("Buying stock query failed")
             session["user_id"] = rows[0]["id"]
             return redirect("/")
         else:
@@ -250,6 +267,8 @@ def sell():
     """Sell shares of stock"""
     if request.method == "GET":
         rows = db.execute("SELECT symbol, SUM(num_shares) FROM transactions WHERE user_id = :user_id GROUP BY symbol", user_id=session["user_id"])
+        if not rows:
+            return apology("Buying stock query failed")
         stocks = []
         for row in rows:
             if row["sum"] != 0:
