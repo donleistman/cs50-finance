@@ -95,12 +95,12 @@ def index():
 
     cash = db.execute("SELECT cash FROM users WHERE id = :user_id", user_id=session["user_id"])
     if not cash:
-        return apology("Database query failed. Please try again, Heroku sometimes fails on first attempt")
+        return apology('Database query failed. Please click "Portfolio" again, Heroku sometimes fails on first attempt')
     cash = round(cash[0]["cash"], 2)
     rows = db.execute("SELECT symbol, SUM(num_shares) FROM transactions WHERE user_id = :user_id GROUP BY symbol", user_id=session["user_id"])
 
     if not rows:
-        return apology("Database query failed. Please try again, Heroku sometimes fails on first attempt")
+        return apology('Database query failed. Please click "Portfolio" again, Heroku sometimes fails on first attempt')
 
     table_display = []
     for row in rows:
@@ -110,7 +110,7 @@ def index():
     for row in table_display:
         stock = lookup(row["symbol"])
         if not stock:
-            return apology("API query failed. Please try again, Heroku sometimes fails on first attempt")
+            return apology('API query failed. Please click "Portfolio" again, Heroku sometimes fails on first attempt')
         print(stock)
         row["current_price"] = currency(stock["price"])
         row["total"] = currency(row['sum'] * stock["price"])
