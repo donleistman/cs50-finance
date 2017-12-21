@@ -8,7 +8,7 @@ from tempfile import mkdtemp
 from werkzeug.exceptions import default_exceptions
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from helpers import apology, login_required, lookup, usd
+from helpers import apology, login_required, lookup, usd, currency
 # from decimal import Decimal
 
 # start
@@ -80,95 +80,35 @@ class SQL(object):
             raise RuntimeError(e)
 # end
 
-def currency(decimal):
-    string = '${:,.2f}'.format(decimal)
-    if decimal < 0:
-        string = "\u2011$" + string[2:len(string)]
-    return string
 
+############################################################
 
-
-@app.route("/")
-@login_required
-def index():
-    """Show portfolio of stocks"""
-
-    cash = db.execute("SELECT cash FROM users WHERE id = :user_id", user_id=session["user_id"])
-    if not cash:
-        return apology('Database query failed. Please click "Portfolio" again, Heroku sometimes fails on first attempt')
-    cash = round(cash[0]["cash"], 2)
-    rows = db.execute("SELECT symbol, SUM(num_shares) FROM transactions WHERE user_id = :user_id GROUP BY symbol", user_id=session["user_id"])
-
-    if not rows:
-        return apology('Database query failed. Please click "Portfolio" again, Heroku sometimes fails on first attempt')
-
-    table_display = []
-    for row in rows:
-        if row['sum'] != 0:
-            table_display.append(row)
-    stock_total = 0
-    for row in table_display:
-        stock = lookup(row["symbol"])
-        if not stock:
-            return apology('API query failed. Please click "Portfolio" again, Heroku sometimes fails on first attempt')
-        print(stock)
-        row["current_price"] = currency(stock["price"])
-        row["total"] = currency(row['sum'] * stock["price"])
-        stock_total += row['sum'] * stock["price"]
-    total_assets = cash + stock_total
-    return render_template("index.html", rows=table_display, stock_total=currency(stock_total), cash=currency(cash), total_assets=currency(total_assets))
-
-
-@app.route("/buy", methods=["GET", "POST"])
-@login_required
-def buy():
-    """Buy shares of stock"""
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    """Register user"""
+    # set variables
+    username = request.form.get("username")
+    password = request.form.get("password")
     if request.method == "GET":
-        return render_template("buy.html")
+        return render_template("register.html")
     else:
-        symbol = request.form.get("symbol")
-        num_shares = request.form.get("num_shares")
-        if not symbol:
-            return apology("Missing stock symbol!")
-        elif not num_shares:
-            return apology("Missing number of shares!")
-        else:
-            num_shares = int(num_shares)
-            stock = lookup(symbol)
-            price = float(stock["price"])
-
-
-            rows = db.execute("SELECT cash FROM users WHERE id = :user_id", user_id=session["user_id"])
+        if not request.form.get("username"):
+            return apology("Missing username!")
+        elif password == request.form.get("confirmation"):
+            # hash the password
+            hash = generate_password_hash(password)
+            # add user to database, checking to make sure they are not already registered
+            success = db.execute("INSERT INTO users (username, hash) VALUES (:username, :hash)", username=username, hash=hash)
+            if not success:
+                return apology("Username already exists")
+            # log them in
+            rows = db.execute("SELECT id FROM users WHERE username = :username", username=username)
             if not rows:
-                return apology("Buying stock query failed")
-            cash = rows[0]["cash"]
-            if (price * num_shares) > cash:
-                return apology("You don't have enough cash!")
-            else:
-                buy_stock = db.execute("INSERT INTO transactions (user_id, symbol, num_shares, price) VALUES (:user_id, :symbol, :num_shares, :price)", user_id=session["user_id"], symbol=symbol, num_shares=num_shares, price=price)
-                if not buy_stock:
-                    return apology("Buying stock query failed")
-                spend_cash = db.execute("UPDATE users SET cash = cash - :cost WHERE id = :user_id", cost=price*num_shares, user_id=session["user_id"])
-                if not spend_cash:
-                    return apology("Deducting cash query failed")
-                return redirect("/")
-
-@app.route("/history")
-@login_required
-def history():
-    """Show history of transactions"""
-    rows = db.execute("SELECT symbol, num_shares, price, timestamp FROM transactions WHERE user_id = :user_id ORDER BY timestamp desc", user_id=session["user_id"])
-    if not rows:
-        return apology("Buying stock query failed")
-    for transaction in rows:
-        transaction["total"] = currency(transaction["num_shares"] * transaction["price"])
-        transaction["price"] = currency(transaction["price"])
-        transaction["timestamp"] = transaction["timestamp"].strftime("%b %d, %Y\n%I:%M %p")
-        if transaction["num_shares"] > 0:
-            transaction["type"] = "Buy"
+                return apology("Query failed")
+            session["user_id"] = rows[0]["id"]
+            return redirect("/")
         else:
-            transaction["type"] = "Sell"
-    return render_template("history.html", rows=rows)
+            return apology("Passwords do not match!")
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -220,6 +160,97 @@ def logout():
     # Redirect user to login form
     return redirect("/")
 
+############################################################
+
+@app.route("/")
+@login_required
+def index():
+    """Show portfolio of stocks"""
+
+    cash = db.execute("SELECT cash FROM users WHERE id = :user_id", user_id=session["user_id"])
+    if not cash:
+        return apology('Database query failed. Please click "Portfolio" again, Heroku sometimes fails on first attempt')
+    cash = round(cash[0]["cash"], 2)
+    rows = db.execute("SELECT symbol, SUM(num_shares) FROM transactions WHERE user_id = :user_id GROUP BY symbol", user_id=session["user_id"])
+
+    if not rows:
+        return apology('Database query failed. Please click "Portfolio" again, query sometimes fails on first attempt')
+
+    table_display = []
+    for row in rows:
+        if row['sum'] != 0:
+            table_display.append(row)
+    stock_total = 0
+    for row in table_display:
+        stock = lookup(row["symbol"])
+        if not stock:
+            return apology('API query failed. Please click "Portfolio" again, query sometimes fails on first attempt')
+        print(stock)
+        row["current_price"] = currency(stock["price"])
+        row["total"] = currency(row['sum'] * stock["price"])
+        stock_total += row['sum'] * stock["price"]
+    total_assets = cash + stock_total
+    return render_template("index.html", rows=table_display, stock_total=currency(stock_total), cash=currency(cash), total_assets=currency(total_assets))
+
+
+@app.route("/history")
+@login_required
+def history():
+    """Show history of transactions"""
+    rows = db.execute("SELECT symbol, num_shares, price, timestamp FROM transactions WHERE user_id = :user_id ORDER BY timestamp desc", user_id=session["user_id"])
+    if not rows:
+        return apology("Buying stock query failed")
+    for transaction in rows:
+        transaction["total"] = currency(transaction["num_shares"] * transaction["price"])
+        transaction["price"] = currency(transaction["price"])
+        transaction["timestamp"] = transaction["timestamp"].strftime("%b %d, %Y\n%I:%M %p")
+        if transaction["num_shares"] > 0:
+            transaction["type"] = "Buy"
+        else:
+            transaction["type"] = "Sell"
+    return render_template("history.html", rows=rows)
+
+############################################################
+
+@app.route("/settings")
+@login_required
+def settings():
+    return render_template("settings.html")
+
+@app.route("/change_password", methods=["GET", "POST"])
+@login_required
+def change_password():
+    """Register user"""
+    # set variables
+    user_id = session["user_id"]
+    old_password = request.form.get("old_password")
+    new_password = request.form.get("new_password")
+    verify_password = request.form.get("verify_password")
+    if request.method == "GET":
+        return render_template("change_password.html")
+    else:
+        rows = db.execute("SELECT * FROM users WHERE id = :user_id", user_id=user_id)
+        if not rows:
+            return apology("Database query failed")
+        current_pw_hash = rows[0]["hash"]
+
+        if not request.form.get("old_password"):
+            return apology("Please enter your current password")
+        elif not check_password_hash(current_pw_hash, old_password):
+            return apology("Current password is incorrect")
+        elif new_password == verify_password:
+            hash = generate_password_hash(new_password)
+            success = db.execute("UPDATE users SET hash = :hash WHERE id = :user_id", user_id=user_id, hash=hash)
+            if not success:
+                return apology('Database update failed')
+            flash('Password changed!')
+            return redirect("/")
+
+        else:
+            return apology("Passwords do not match!")
+
+
+############################################################
 
 @app.route("/quote", methods=["GET", "POST"])
 @login_required
@@ -237,34 +268,39 @@ def quote():
             return render_template("quote_result.html", stock=stock)
 
 
-@app.route("/register", methods=["GET", "POST"])
-def register():
-    """Register user"""
-    # set variables
-    username = request.form.get("username")
-    password = request.form.get("password")
+@app.route("/buy", methods=["GET", "POST"])
+@login_required
+def buy():
+    """Buy shares of stock"""
     if request.method == "GET":
-        return render_template("register.html")
+        return render_template("buy.html")
     else:
-        if not request.form.get("username"):
-            return apology("Missing username!")
-        elif password == request.form.get("confirmation"):
-            # hash the password
-            hash = generate_password_hash(password)
-            # add user to database, checking to make sure they are not already registered
-            success = db.execute("INSERT INTO users (username, hash) VALUES (:username, :hash)", username=username, hash=hash)
-            if not success:
-                return apology("Username already exists")
-            # log them in
-            rows = db.execute("SELECT id FROM users WHERE username = :username", username=username)
+        symbol = request.form.get("symbol")
+        num_shares = request.form.get("num_shares")
+        if not symbol:
+            return apology("Missing stock symbol!")
+        elif not num_shares:
+            return apology("Missing number of shares!")
+        else:
+            num_shares = int(num_shares)
+            stock = lookup(symbol)
+            price = float(stock["price"])
+
+            rows = db.execute("SELECT cash FROM users WHERE id = :user_id", user_id=session["user_id"])
             if not rows:
                 return apology("Buying stock query failed")
-            session["user_id"] = rows[0]["id"]
-            return redirect("/")
-        else:
-            return apology("Passwords do not match!")
-
-
+            cash = rows[0]["cash"]
+            if (price * num_shares) > cash:
+                return apology("You don't have enough cash!")
+            else:
+                buy_stock = db.execute("INSERT INTO transactions (user_id, symbol, num_shares, price) VALUES (:user_id, :symbol, :num_shares, :price)", user_id=session["user_id"], symbol=symbol, num_shares=num_shares, price=price)
+                if not buy_stock:
+                    return apology("Buying stock query failed")
+                spend_cash = db.execute("UPDATE users SET cash = cash - :cost WHERE id = :user_id", cost=price*num_shares, user_id=session["user_id"])
+                if not spend_cash:
+                    return apology("Deducting cash query failed")
+                flash(f"Successfully purchased {num_shares} shares of {symbol}")
+                return redirect("/")
 
 
 @app.route("/sell", methods=["GET", "POST"])
@@ -298,10 +334,13 @@ def sell():
             get_cash = db.execute("UPDATE users SET cash = cash - :cost WHERE id = :user_id", cost=price*num_shares, user_id=session["user_id"])
             if not get_cash:
                 return apology("Deducting cash query failed")
+            flash(f"Successfully sold {abs(num_shares)} shares of {symbol}")
             return redirect("/")
 
         return render_template("sell.html")
 
+
+############################################################
 
 
 def errorhandler(e):

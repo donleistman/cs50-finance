@@ -112,3 +112,9 @@ def lookup(symbol):
 def usd(value):
     """Formats value as USD."""
     return f"${value:,.2f}"
+
+def currency(decimal):
+    string = '${:,.2f}'.format(decimal)
+    if decimal < 0:
+        string = "\u2011$" + string[2:len(string)]
+    return string

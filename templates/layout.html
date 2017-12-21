@@ -13,6 +13,10 @@
 
         <link href="/static/styles.css" rel="stylesheet"/>
 
+        <!-- fontawesome -->
+        <link href="https://use.fontawesome.com/releases/v5.0.1/css/all.css" rel="stylesheet">
+
+
         <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js"></script>
         <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js"></script>
@@ -56,6 +60,8 @@
                 </div>
             </header>
         {% endif %}
+
+        {% block settings_icon %}{% endblock %}
 
         <main class="container p-5">
             {% block main %}{% endblock %}

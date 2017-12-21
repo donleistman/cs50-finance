@@ -4,9 +4,15 @@
     Index
 {% endblock %}
 
+{% block settings_icon %}
+<div id="settings-icon">
+    <a href="/settings"><span class="fas fa-cog fa-lg settings-icon" alt="Settings"></span></a>
+</div>
+{% endblock %}
+
 {% block main %}
 
-<table class="table table-striped">
+<table class="table table-striped" id="portfolio-table">
     <thead>
     <tr>
         <th>Stock Symbol</th>
